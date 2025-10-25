@@ -10,6 +10,8 @@ const api = axios.create({
 // Generic helper functions
 export const get = async <T>(url: string, params?: any): Promise<T> => {
   const res = await api.get(url, { params });
+  console.log(`${process.env.NEXT_PUBLIC_API_URL}${url}`);
+
   return res.data;
 };
 

@@ -3,6 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { getEvents } from '@/lib/events';
+import LoginOverlay from './LoginOverlay';
+import ExpandableControls from './ButtonAnimation';
+import CreateEventOverlay from './CreateEventOverlay';
 
 interface Star {
   id: string;
@@ -11,7 +15,6 @@ interface Star {
   info: string;
 }
 
-// Mock events
 interface Event {
   id: number;
   title: string;
@@ -19,46 +22,6 @@ interface Event {
   imageUrl: string | null;
   videoUrl: string | null;
 }
-
-const events: Event[] = [
-  {
-    id: 1,
-    title: 'Event 1',
-    description: 'Description of event 1',
-    imageUrl: null,
-    videoUrl: null,
-  },
-  {
-    id: 2,
-    title: 'Event 2',
-    description: 'Description of event 2',
-    imageUrl: null,
-    videoUrl: null,
-  },
-  {
-    id: 3,
-    title: 'Event 3',
-    description: 'Description of event 3',
-    imageUrl: null,
-    videoUrl: null,
-  },
-];
-
-const generateStars = (count: number) => {
-  const stars: Star[] = [];
-  const paddingPercent = 10;
-  for (let i = 0; i < count; i++) {
-    stars.push({
-      id: (i + 1).toString(),
-      left: paddingPercent + ((100 - 2 * paddingPercent) * i) / (count - 1),
-      top: 30 + Math.random() * 40,
-      info: `Star ${i + 1}: Click to view event`,
-    });
-  }
-  return stars;
-};
-
-const stars = generateStars(events.length);
 
 export default function StarryNight() {
   const [hoveredStar, setHoveredStar] = useState<Star | null>(null);
@@ -70,6 +33,49 @@ export default function StarryNight() {
   const dragStart = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [events, setEvents] = useState<Event[]>([]);
+  const [stars, setStars] = useState<Star[]>([]);
+  const [showLogin, setShowLogin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showCreateEventOverlay, setShowCreateEventOverlay] = useState(false);
+
+  // Show login on "P", but don't toggle it off
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'p' && !showLogin) {
+        setShowLogin(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showLogin]);
+
+  // Fetch events
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const data = await getEvents();
+        setEvents(data);
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
+      }
+    };
+    fetchEvents();
+  }, []);
+
+  // Generate stars based on events
+  useEffect(() => {
+    if (events.length === 0) return;
+    const paddingPercent = 10;
+    const newStars: Star[] = events.map((event, i) => ({
+      id: event.id.toString(),
+      left: paddingPercent + ((100 - 2 * paddingPercent) * i) / (events.length - 1),
+      top: 30 + Math.random() * 40,
+      info: `${event.title} - ${event.description.slice(0, 50)}${event.description.length > 50 ? '...' : ''}`,
+    }));
+    setStars(newStars);
+  }, [events]);
+
   // Animate stars
   useEffect(() => {
     const interval = setInterval(() => setAnimationTick((t) => t + 0.01), 16);
@@ -77,14 +83,14 @@ export default function StarryNight() {
   }, []);
 
   // Zoom with wheel
-  const handleWheel = (e: WheelEvent) => {
-    e.preventDefault();
-    const delta = -e.deltaY;
-    setScale((prev) => Math.min(Math.max(prev + delta * 0.001, 0.5), 3));
-  };
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY;
+      setScale((prev) => Math.min(Math.max(prev + delta * 0.001, 0.5), 3));
+    };
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
@@ -105,48 +111,28 @@ export default function StarryNight() {
     const zoomTargetScale = 4;
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
-
     const starX = (star.left / 100) * window.innerWidth;
     const starY = (star.top / 100) * window.innerHeight;
-
     const newOffset = {
       x: centerX - starX * zoomTargetScale,
       y: centerY - starY * zoomTargetScale,
     };
-
     setHoveredStar(null);
     setIsDragging(false);
-
     setOffset(newOffset);
     setScale(zoomTargetScale);
 
-    // Show event info after zoom animation
     setTimeout(() => {
       const event = events.find((e) => e.id === Number(star.id));
       setActiveEvent(event || null);
     }, 2000);
   };
 
-  // Close event info
   const closeEvent = () => {
     setActiveEvent(null);
     setScale(1);
     setOffset({ x: 0, y: 0 });
   };
-
-  // Close event overlay on Escape key
-  useEffect(() => {
-    if (!activeEvent) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeEvent();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeEvent]);
 
   return (
     <div
@@ -157,13 +143,13 @@ export default function StarryNight() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
+      {/* Stars and Lines */}
       <motion.div
         className="absolute top-0 left-0 w-full h-full"
         style={{ transformOrigin: 'top left' }}
         animate={{ scale, x: offset.x, y: offset.y }}
         transition={{ duration: 2.3, ease: 'easeInOut' }}
       >
-        {/* Lines */}
         <svg className="absolute w-full h-full top-0 left-0">
           {stars.map((star, index) => {
             if (index === stars.length - 1) return null;
@@ -185,7 +171,6 @@ export default function StarryNight() {
           })}
         </svg>
 
-        {/* Stars */}
         {stars.map((star) => {
           const y = star.top + Math.sin(animationTick + Number(star.id)) * 2;
           return (
@@ -199,28 +184,24 @@ export default function StarryNight() {
             />
           );
         })}
-
-        {/* Tooltip */}
-        <AnimatePresence>
-          {hoveredStar && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: -10 }}
-              exit={{ opacity: 0 }}
-              className="absolute bg-gray-800 text-white text-sm px-2 py-1 rounded shadow-md pointer-events-none z-50"
-              style={{
-                top: `${hoveredStar.top - 5}%`,
-                left: `${hoveredStar.left}%`,
-                transform: 'translate(-50%, -100%)',
-              }}
-            >
-              {hoveredStar.info}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
 
-      {/* Event Info Overlay */}
+      {/* Tooltip */}
+      <AnimatePresence>
+        {hoveredStar && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: -10 }}
+            exit={{ opacity: 0 }}
+            className="absolute bg-gray-800 text-white text-sm px-2 py-1 rounded shadow-md pointer-events-none z-50"
+            style={{ top: `${hoveredStar.top - 5}%`, left: `${hoveredStar.left}%`, transform: 'translate(-50%, -100%)' }}
+          >
+            {hoveredStar.info}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Event Overlay */}
       <AnimatePresence>
         {activeEvent && (
           <motion.div
@@ -228,24 +209,16 @@ export default function StarryNight() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-80 text-white p-6 z-50"
+            className="fixed inset-0 flex flex-col justify-center items-center bg-black bg-opacity-80 text-white p-6 z-50"
           >
             <h2 className="text-3xl font-bold mb-4">{activeEvent.title}</h2>
             <p className="mb-4 text-center max-w-xl">{activeEvent.description}</p>
-
             {activeEvent.imageUrl && (
               <div className="max-w-sm mb-4 relative w-full h-64">
-                <Image
-                  src={activeEvent.imageUrl}
-                  alt={activeEvent.title}
-                  fill
-                  className="object-contain rounded"
-                />
+                <Image src={activeEvent.imageUrl} alt={activeEvent.title} fill className="object-contain rounded" />
               </div>
             )}
-            {activeEvent.videoUrl && (
-              <video src={activeEvent.videoUrl} controls className="max-w-sm rounded mb-4" />
-            )}
+            {activeEvent.videoUrl && <video src={activeEvent.videoUrl} controls className="max-w-sm rounded mb-4" />}
             <button
               onClick={closeEvent}
               className="mt-4 px-4 py-2 bg-white text-black rounded hover:bg-gray-300 transition"
@@ -255,6 +228,35 @@ export default function StarryNight() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Login Overlay */}
+      <AnimatePresence>
+        {showLogin && (
+          <LoginOverlay
+            onClose={() => setShowLogin(false)}
+            onLoginSuccess={() => {
+              setIsLoggedIn(true);
+              setShowLogin(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Create Event Overlay */}
+      <AnimatePresence>
+        {showCreateEventOverlay && (
+          <CreateEventOverlay onClose={() => setShowCreateEventOverlay(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Expandable + / - Controls */}
+{/* Show controls only if logged in and no overlays are open */}
+{isLoggedIn && !showLogin && !showCreateEventOverlay && !activeEvent && (
+  <ExpandableControls
+    onPlusClick={() => setShowCreateEventOverlay(true)}
+  />
+)}
+
     </div>
   );
 }
