@@ -5,7 +5,12 @@ import { motion } from 'framer-motion';
 
 interface CreateEventOverlayProps {
   onClose: () => void;
-  onSave?: (event: { title: string; description: string; imageFile?: File; videoFile?: File }) => void;
+  onSave?: (event: {
+    title: string;
+    description: string;
+    imageFile?: File;
+    videoFile?: File;
+  }) => void;
 }
 
 export default function CreateEventOverlay({ onClose, onSave }: CreateEventOverlayProps) {
@@ -41,7 +46,12 @@ export default function CreateEventOverlay({ onClose, onSave }: CreateEventOverl
 
   const handleSave = () => {
     if (title && description) {
-      onSave?.({ title, description, imageFile: imageFile || undefined, videoFile: videoFile || undefined });
+      onSave?.({
+        title,
+        description,
+        imageFile: imageFile || undefined,
+        videoFile: videoFile || undefined,
+      });
       onClose();
     }
   };

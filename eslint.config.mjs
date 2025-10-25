@@ -18,8 +18,7 @@ const eslintConfig = [
   },
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
-    rules: {
-    },
+    rules: {},
   },
 ];
 

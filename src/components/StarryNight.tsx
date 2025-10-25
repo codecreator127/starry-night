@@ -194,7 +194,11 @@ export default function StarryNight() {
             animate={{ opacity: 1, y: -10 }}
             exit={{ opacity: 0 }}
             className="absolute bg-gray-800 text-white text-sm px-2 py-1 rounded shadow-md pointer-events-none z-50"
-            style={{ top: `${hoveredStar.top - 5}%`, left: `${hoveredStar.left}%`, transform: 'translate(-50%, -100%)' }}
+            style={{
+              top: `${hoveredStar.top - 5}%`,
+              left: `${hoveredStar.left}%`,
+              transform: 'translate(-50%, -100%)',
+            }}
           >
             {hoveredStar.info}
           </motion.div>
@@ -215,10 +219,17 @@ export default function StarryNight() {
             <p className="mb-4 text-center max-w-xl">{activeEvent.description}</p>
             {activeEvent.imageUrl && (
               <div className="max-w-sm mb-4 relative w-full h-64">
-                <Image src={activeEvent.imageUrl} alt={activeEvent.title} fill className="object-contain rounded" />
+                <Image
+                  src={activeEvent.imageUrl}
+                  alt={activeEvent.title}
+                  fill
+                  className="object-contain rounded"
+                />
               </div>
             )}
-            {activeEvent.videoUrl && <video src={activeEvent.videoUrl} controls className="max-w-sm rounded mb-4" />}
+            {activeEvent.videoUrl && (
+              <video src={activeEvent.videoUrl} controls className="max-w-sm rounded mb-4" />
+            )}
             <button
               onClick={closeEvent}
               className="mt-4 px-4 py-2 bg-white text-black rounded hover:bg-gray-300 transition"
@@ -250,13 +261,10 @@ export default function StarryNight() {
       </AnimatePresence>
 
       {/* Expandable + / - Controls */}
-{/* Show controls only if logged in and no overlays are open */}
-{isLoggedIn && !showLogin && !showCreateEventOverlay && !activeEvent && (
-  <ExpandableControls
-    onPlusClick={() => setShowCreateEventOverlay(true)}
-  />
-)}
-
+      {/* Show controls only if logged in and no overlays are open */}
+      {isLoggedIn && !showLogin && !showCreateEventOverlay && !activeEvent && (
+        <ExpandableControls onPlusClick={() => setShowCreateEventOverlay(true)} />
+      )}
     </div>
   );
 }
