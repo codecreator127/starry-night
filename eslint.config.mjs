@@ -10,18 +10,19 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  // Next.js + TypeScript base
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
-
-  // Prettier integration
   ...compat.extends('plugin:prettier/recommended'),
 
+  // Global ignores
   {
     ignores: ['node_modules/**', '.next/**', 'out/**', 'build/**', 'next-env.d.ts'],
+  },
+
+  // Optional overrides
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
     rules: {
-      // optional overrides
-      // e.g., turn off conflicts with Prettier
-      'react/react-in-jsx-scope': 'off',
+      // Your custom rules here
     },
   },
 ];

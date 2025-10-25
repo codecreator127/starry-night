@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 interface Star {
   id: string;
@@ -231,8 +232,16 @@ export default function StarryNight() {
           >
             <h2 className="text-3xl font-bold mb-4">{activeEvent.title}</h2>
             <p className="mb-4 text-center max-w-xl">{activeEvent.description}</p>
+
             {activeEvent.imageUrl && (
-              <img src={activeEvent.imageUrl} className="max-w-sm mb-4 rounded" />
+              <div className="max-w-sm mb-4 relative w-full h-64">
+                <Image
+                  src={activeEvent.imageUrl}
+                  alt={activeEvent.title}
+                  fill
+                  className="object-contain rounded"
+                />
+              </div>
             )}
             {activeEvent.videoUrl && (
               <video src={activeEvent.videoUrl} controls className="max-w-sm rounded mb-4" />

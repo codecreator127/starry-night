@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/lib/api';
+import { get } from '@/lib/api';
 import { endpoints } from '@/lib/endpoints';
 import { UUID } from 'crypto';
 
