@@ -4,11 +4,19 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
 interface ExpandableControlsProps {
-  onPlusClick?: () => void;
+  onCreateClick?: () => void;
+  onRemoveClick?: () => void;
+  disabled?: boolean;
 }
 
-export default function ExpandableControls({ onPlusClick }: ExpandableControlsProps) {
+export default function ExpandableControls({
+  onCreateClick,
+  onRemoveClick,
+  disabled,
+}: ExpandableControlsProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  if (disabled) return null;
 
   return (
     <div
@@ -21,19 +29,19 @@ export default function ExpandableControls({ onPlusClick }: ExpandableControlsPr
         <motion.button
           animate={{ y: isHovered ? -50 : 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className="absolute top-0 left-0 w-12 h-12 rounded-full bg-white text-black font-bold flex items-center justify-center cursor-pointer"
-          onClick={onPlusClick}
+          onClick={onCreateClick}
+          className="absolute top-0 left-0 w-12 h-12 rounded-full bg-white text-black font-bold flex items-center justify-center cursor-pointer shadow-lg"
         >
           +
         </motion.button>
 
-        {/* - Button stays */}
+        {/* - Button */}
         <motion.button
-          animate={{ y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className="absolute top-0 left-0 w-12 h-12 rounded-full bg-white text-black font-bold flex items-center justify-center cursor-pointer"
+          onClick={onRemoveClick}
+          className="absolute top-0 left-0 w-12 h-12 rounded-full bg-white text-black font-bold flex items-center justify-center cursor-pointer shadow-lg"
         >
-          -
+          –
         </motion.button>
       </div>
     </div>

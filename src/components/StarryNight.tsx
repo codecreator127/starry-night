@@ -3,10 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { getEvents } from '@/lib/events';
+import { addEvent, deleteEvent, getEvents, updateEvent } from '@/lib/events';
 import LoginOverlay from './LoginOverlay';
 import ExpandableControls from './ButtonAnimation';
 import CreateEventOverlay from './CreateEventOverlay';
+import RemoveEventOverlay from './RemoveEventOverlay';
 
 interface Star {
   id: string;
@@ -30,16 +31,17 @@ export default function StarryNight() {
   const [isDragging, setIsDragging] = useState(false);
   const [animationTick, setAnimationTick] = useState(0);
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null); // <-- New
   const dragStart = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [events, setEvents] = useState<Event[]>([]);
-  const [stars, setStars] = useState<Star[]>([]);
   const [showLogin, setShowLogin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCreateEventOverlay, setShowCreateEventOverlay] = useState(false);
+  const [showRemoveEventOverlay, setShowRemoveEventOverlay] = useState(false);
 
-  // Show login on "P", but don't toggle it off
+  // --- show login when pressing "P"
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'p' && !showLogin) {
@@ -50,7 +52,7 @@ export default function StarryNight() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showLogin]);
 
-  // Fetch events
+  // --- fetch events
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -63,39 +65,47 @@ export default function StarryNight() {
     fetchEvents();
   }, []);
 
-  // Generate stars based on events
+  const [stars, setStars] = useState<Star[]>([]);
+
+  // --- generate stars from events
   useEffect(() => {
     if (events.length === 0) return;
+
     const paddingPercent = 10;
     const newStars: Star[] = events.map((event, i) => ({
       id: event.id.toString(),
-      left: paddingPercent + ((100 - 2 * paddingPercent) * i) / (events.length - 1),
+      left:
+        events.length === 1
+          ? 50
+          : paddingPercent + ((100 - 2 * paddingPercent) * i) / (events.length - 1),
       top: 30 + Math.random() * 40,
-      info: `${event.title} - ${event.description.slice(0, 50)}${event.description.length > 50 ? '...' : ''}`,
+      info: `${event.title} - ${event.description.slice(0, 50)}${
+        event.description.length > 50 ? '...' : ''
+      }`,
     }));
+
     setStars(newStars);
   }, [events]);
 
-  // Animate stars
+  // --- animation tick
   useEffect(() => {
     const interval = setInterval(() => setAnimationTick((t) => t + 0.01), 16);
     return () => clearInterval(interval);
   }, []);
 
-  // Zoom with wheel
+  // --- zoom and drag
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const delta = -e.deltaY;
+    setScale((prev) => Math.min(Math.max(prev + delta * 0.001, 0.5), 3));
+  };
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const delta = -e.deltaY;
-      setScale((prev) => Math.min(Math.max(prev + delta * 0.001, 0.5), 3));
-    };
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
 
-  // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
@@ -106,26 +116,35 @@ export default function StarryNight() {
   };
   const handleMouseUp = () => setIsDragging(false);
 
-  // Click star → zoom in and show event
+  // --- star click
   const handleStarClick = (star: Star) => {
-    const zoomTargetScale = 4;
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const starX = (star.left / 100) * window.innerWidth;
-    const starY = (star.top / 100) * window.innerHeight;
-    const newOffset = {
-      x: centerX - starX * zoomTargetScale,
-      y: centerY - starY * zoomTargetScale,
-    };
-    setHoveredStar(null);
-    setIsDragging(false);
-    setOffset(newOffset);
-    setScale(zoomTargetScale);
+    const event = events.find((e) => e.id === Number(star.id));
+    if (!event) return;
 
-    setTimeout(() => {
-      const event = events.find((e) => e.id === Number(star.id));
-      setActiveEvent(event || null);
-    }, 2000);
+    if (isLoggedIn) {
+      // Open editable overlay
+      setEditingEvent(event);
+      setShowCreateEventOverlay(true);
+    } else {
+      // Zoom and show read-only event
+      const zoomTargetScale = 4;
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const starX = (star.left / 100) * window.innerWidth;
+      const starY = (star.top / 100) * window.innerHeight;
+
+      const newOffset = {
+        x: centerX - starX * zoomTargetScale,
+        y: centerY - starY * zoomTargetScale,
+      };
+
+      setHoveredStar(null);
+      setIsDragging(false);
+      setOffset(newOffset);
+      setScale(zoomTargetScale);
+
+      setTimeout(() => setActiveEvent(event), 2000);
+    }
   };
 
   const closeEvent = () => {
@@ -133,6 +152,81 @@ export default function StarryNight() {
     setScale(1);
     setOffset({ x: 0, y: 0 });
   };
+
+  // --- close on ESC
+  useEffect(() => {
+    if (!activeEvent) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeEvent();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeEvent]);
+
+  // --- create or edit event handler
+  const handleSaveEvent = async (data: {
+    id?: number;
+    title: string;
+    description: string;
+    imageFile?: File;
+    videoFile?: File;
+  }) => {
+    if (data.id) {
+      // Editing existing event
+
+      updateEvent(data.id, {
+        title: data.title,
+        description: data.description,
+        imageUrl: data.imageFile ? URL.createObjectURL(data.imageFile) : undefined,
+        videoUrl: data.videoFile ? URL.createObjectURL(data.videoFile) : undefined,
+      });
+
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === data.id
+            ? {
+                ...e,
+                title: data.title,
+                description: data.description,
+                imageUrl: data.imageFile ? URL.createObjectURL(data.imageFile) : e.imageUrl,
+                videoUrl: data.videoFile ? URL.createObjectURL(data.videoFile) : e.videoUrl,
+              }
+            : e
+        )
+      );
+    } else {
+      // New event
+      try {
+        const newEvent = await addEvent({
+          title: data.title,
+          description: data.description,
+          imageUrl: data.imageFile ? URL.createObjectURL(data.imageFile) : null,
+          videoUrl: data.videoFile ? URL.createObjectURL(data.videoFile) : null,
+        });
+        setEvents((prev) => [...prev, newEvent]);
+      } catch (err) {
+        console.error('Failed to add event:', err);
+      }
+    }
+  };
+
+  const handleRemoveEvent = async (id: number) => {
+    try {
+      await deleteEvent(id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      console.error('Failed to remove event:', err);
+    }
+  };
+
+  const [backgroundStars] = useState(() =>
+    [...Array(150)].map(() => ({
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      size: Math.random() * 2 + 1,
+      opacity: Math.random() * 0.8 + 0.2,
+    }))
+  );
 
   return (
     <div
@@ -143,7 +237,24 @@ export default function StarryNight() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {/* Stars and Lines */}
+      {/* Background stars */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        {backgroundStars.map((star, i) => (
+          <div
+            key={i}
+            className="absolute bg-white rounded-full"
+            style={{
+              width: star.size,
+              height: star.size,
+              top: `${star.top}%`,
+              left: `${star.left}%`,
+              opacity: star.opacity,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Moving stars + lines */}
       <motion.div
         className="absolute top-0 left-0 w-full h-full"
         style={{ transformOrigin: 'top left' }}
@@ -205,7 +316,7 @@ export default function StarryNight() {
         )}
       </AnimatePresence>
 
-      {/* Event Overlay */}
+      {/* Read-only Active Event Overlay */}
       <AnimatePresence>
         {activeEvent && (
           <motion.div
@@ -213,7 +324,7 @@ export default function StarryNight() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="fixed inset-0 flex flex-col justify-center items-center bg-black bg-opacity-80 text-white p-6 z-50"
+            className="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-80 text-white p-6 z-50"
           >
             <h2 className="text-3xl font-bold mb-4">{activeEvent.title}</h2>
             <p className="mb-4 text-center max-w-xl">{activeEvent.description}</p>
@@ -240,7 +351,7 @@ export default function StarryNight() {
         )}
       </AnimatePresence>
 
-      {/* Login Overlay */}
+      {/* Login */}
       <AnimatePresence>
         {showLogin && (
           <LoginOverlay
@@ -253,18 +364,45 @@ export default function StarryNight() {
         )}
       </AnimatePresence>
 
-      {/* Create Event Overlay */}
-      <AnimatePresence>
-        {showCreateEventOverlay && (
-          <CreateEventOverlay onClose={() => setShowCreateEventOverlay(false)} />
-        )}
-      </AnimatePresence>
-
-      {/* Expandable + / - Controls */}
-      {/* Show controls only if logged in and no overlays are open */}
-      {isLoggedIn && !showLogin && !showCreateEventOverlay && !activeEvent && (
-        <ExpandableControls onPlusClick={() => setShowCreateEventOverlay(true)} />
+      {/* Create / Edit Event Overlay */}
+      {showCreateEventOverlay && (
+        <CreateEventOverlay
+          initialEvent={editingEvent || undefined}
+          onClose={() => {
+            setShowCreateEventOverlay(false);
+            setEditingEvent(null);
+          }}
+          onSave={(data) => {
+            handleSaveEvent(data);
+            setShowCreateEventOverlay(false);
+            setEditingEvent(null);
+          }}
+        />
       )}
+
+      {/* Remove Event */}
+      {showRemoveEventOverlay && (
+        <RemoveEventOverlay
+          events={events}
+          onClose={() => setShowRemoveEventOverlay(false)}
+          onRemove={(id) => handleRemoveEvent(id)}
+        />
+      )}
+
+      {/* Controls */}
+      {isLoggedIn &&
+        !showLogin &&
+        !showCreateEventOverlay &&
+        !showRemoveEventOverlay &&
+        !activeEvent && (
+          <ExpandableControls
+            onCreateClick={() => {
+              setEditingEvent(null); // new event
+              setShowCreateEventOverlay(true);
+            }}
+            onRemoveClick={() => setShowRemoveEventOverlay(true)}
+          />
+        )}
     </div>
   );
 }

@@ -2,24 +2,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Event } from '@/lib/events';
 
 interface CreateEventOverlayProps {
   onClose: () => void;
   onSave?: (event: {
+    id?: number; // optional for edits
     title: string;
     description: string;
     imageFile?: File;
     videoFile?: File;
   }) => void;
+  initialEvent?: Event; // optional event to edit
 }
 
-export default function CreateEventOverlay({ onClose, onSave }: CreateEventOverlayProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+export default function CreateEventOverlay({ onClose, onSave, initialEvent }: CreateEventOverlayProps) {
+  const [title, setTitle] = useState(initialEvent?.title || '');
+  const [description, setDescription] = useState(initialEvent?.description || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState(initialEvent?.imageUrl || null);
+  const [videoPreview, setVideoPreview] = useState(initialEvent?.videoUrl || null);
 
   // Update previews when files change
   useEffect(() => {
@@ -47,6 +50,7 @@ export default function CreateEventOverlay({ onClose, onSave }: CreateEventOverl
   const handleSave = () => {
     if (title && description) {
       onSave?.({
+        id: initialEvent?.id,
         title,
         description,
         imageFile: imageFile || undefined,
