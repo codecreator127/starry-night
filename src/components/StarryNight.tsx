@@ -8,6 +8,7 @@ import LoginOverlay from './LoginOverlay';
 import ExpandableControls from './ButtonAnimation';
 import CreateEventOverlay from './CreateEventOverlay';
 import RemoveEventOverlay from './RemoveEventOverlay';
+import { uploadFileToS3 } from '@/lib/s3';
 
 interface Star {
   id: string;
@@ -40,17 +41,26 @@ export default function StarryNight() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCreateEventOverlay, setShowCreateEventOverlay] = useState(false);
   const [showRemoveEventOverlay, setShowRemoveEventOverlay] = useState(false);
+  const [showLogoutPrompt, setShowLogoutPrompt] = useState(false);
 
-  // --- show login when pressing "P"
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'p' && !showLogin) {
+
+// --- handle login/logout toggle on "P"
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key.toLowerCase() === 'p') {
+      if (isLoggedIn) {
+        // Toggle logout prompt when already logged in
+        setShowLogoutPrompt((prev) => !prev);
+      } else {
+        // Show login overlay
         setShowLogin(true);
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showLogin]);
+    }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [isLoggedIn]);
+
 
   // --- fetch events
   useEffect(() => {
@@ -163,52 +173,85 @@ export default function StarryNight() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeEvent]);
 
-  // --- create or edit event handler
-  const handleSaveEvent = async (data: {
-    id?: number;
-    title: string;
-    description: string;
-    imageFile?: File;
-    videoFile?: File;
-  }) => {
+
+const handleSaveEvent = async (data: {
+  id?: number;
+  title: string;
+  description: string;
+  imageFile?: File;
+  videoFile?: File;
+  imageRemoved?: boolean;
+  videoRemoved?: boolean;
+}) => {
+  try {
+    let imageUrl: string | null = null;
+    let videoUrl: string | null = null;
+
     if (data.id) {
       // Editing existing event
+      const existingEvent = events.find((e) => e.id === data.id)!;
 
-      updateEvent(data.id, {
+      // Determine image/video URLs
+      if (data.imageRemoved) {
+        imageUrl = null;
+      } else if (data.imageFile) {
+        imageUrl = await uploadFileToS3(data.imageFile, data.id);
+      } else {
+        imageUrl = existingEvent.imageUrl;
+      }
+
+      if (data.videoRemoved) {
+        videoUrl = null;
+      } else if (data.videoFile) {
+        videoUrl = await uploadFileToS3(data.videoFile, data.id);
+      } else {
+        videoUrl = existingEvent.videoUrl;
+      }
+
+      // Update backend
+      await updateEvent(data.id, {
         title: data.title,
         description: data.description,
-        imageUrl: data.imageFile ? URL.createObjectURL(data.imageFile) : undefined,
-        videoUrl: data.videoFile ? URL.createObjectURL(data.videoFile) : undefined,
+        imageUrl,
+        videoUrl,
       });
 
+      // Update frontend state
       setEvents((prev) =>
         prev.map((e) =>
           e.id === data.id
-            ? {
-                ...e,
-                title: data.title,
-                description: data.description,
-                imageUrl: data.imageFile ? URL.createObjectURL(data.imageFile) : e.imageUrl,
-                videoUrl: data.videoFile ? URL.createObjectURL(data.videoFile) : e.videoUrl,
-              }
+            ? { ...e, title: data.title, description: data.description, imageUrl, videoUrl }
             : e
         )
       );
     } else {
       // New event
-      try {
-        const newEvent = await addEvent({
-          title: data.title,
-          description: data.description,
-          imageUrl: data.imageFile ? URL.createObjectURL(data.imageFile) : null,
-          videoUrl: data.videoFile ? URL.createObjectURL(data.videoFile) : null,
-        });
-        setEvents((prev) => [...prev, newEvent]);
-      } catch (err) {
-        console.error('Failed to add event:', err);
+      const newEvent = await addEvent({
+        title: data.title,
+        description: data.description,
+        imageUrl: null,
+        videoUrl: null,
+      });
+
+      const eventId = newEvent.id;
+
+      if (data.imageFile) imageUrl = await uploadFileToS3(data.imageFile, eventId);
+      if (data.videoFile) videoUrl = await uploadFileToS3(data.videoFile, eventId);
+
+      if (imageUrl !== null || videoUrl !== null) {
+        await updateEvent(eventId, { imageUrl, videoUrl });
+        newEvent.imageUrl = imageUrl;
+        newEvent.videoUrl = videoUrl;
       }
+
+      setEvents((prev) => [...prev, newEvent]);
     }
-  };
+  } catch (err) {
+    console.error('Failed to save event:', err);
+  }
+};
+
+
 
   const handleRemoveEvent = async (id: number) => {
     try {
@@ -315,6 +358,24 @@ export default function StarryNight() {
           </motion.div>
         )}
       </AnimatePresence>
+{/* Logout Prompt */}
+<AnimatePresence>
+  {showLogoutPrompt && (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }}
+      className="absolute top-6 right-6 bg-white text-black px-4 py-2 rounded cursor-pointer z-50 shadow-md hover:bg-gray-200 transition"
+      onClick={() => {
+        setIsLoggedIn(false);
+        setShowLogoutPrompt(false);
+      }}
+    >
+      Log out
+    </motion.div>
+  )}
+</AnimatePresence>
 
       {/* Read-only Active Event Overlay */}
       <AnimatePresence>

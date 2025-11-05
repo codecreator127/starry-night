@@ -7,13 +7,15 @@ import { Event } from '@/lib/events';
 interface CreateEventOverlayProps {
   onClose: () => void;
   onSave?: (event: {
-    id?: number; // optional for edits
+    id?: number;
     title: string;
     description: string;
     imageFile?: File;
     videoFile?: File;
+    imageRemoved?: boolean; // track removal
+    videoRemoved?: boolean;
   }) => void;
-  initialEvent?: Event; // optional event to edit
+  initialEvent?: Event;
 }
 
 export default function CreateEventOverlay({ onClose, onSave, initialEvent }: CreateEventOverlayProps) {
@@ -21,22 +23,41 @@ export default function CreateEventOverlay({ onClose, onSave, initialEvent }: Cr
   const [description, setDescription] = useState(initialEvent?.description || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState(initialEvent?.imageUrl || null);
-  const [videoPreview, setVideoPreview] = useState(initialEvent?.videoUrl || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(initialEvent?.imageUrl || null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(initialEvent?.videoUrl || null);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const [videoRemoved, setVideoRemoved] = useState(false);
 
   // Update previews when files change
   useEffect(() => {
-    if (imageFile) setImagePreview(URL.createObjectURL(imageFile));
-    else setImagePreview(null);
+    let imageObjectUrl: string | undefined;
+    let videoObjectUrl: string | undefined;
 
-    if (videoFile) setVideoPreview(URL.createObjectURL(videoFile));
-    else setVideoPreview(null);
+    if (imageFile) {
+      imageObjectUrl = URL.createObjectURL(imageFile);
+      setImagePreview(imageObjectUrl);
+      setImageRemoved(false);
+    } else if (!imageRemoved) {
+      setImagePreview(initialEvent?.imageUrl || null);
+    } else {
+      setImagePreview(null);
+    }
+
+    if (videoFile) {
+      videoObjectUrl = URL.createObjectURL(videoFile);
+      setVideoPreview(videoObjectUrl);
+      setVideoRemoved(false);
+    } else if (!videoRemoved) {
+      setVideoPreview(initialEvent?.videoUrl || null);
+    } else {
+      setVideoPreview(null);
+    }
 
     return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-      if (videoPreview) URL.revokeObjectURL(videoPreview);
+      if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+      if (videoObjectUrl) URL.revokeObjectURL(videoObjectUrl);
     };
-  }, [imageFile, videoFile]);
+  }, [imageFile, videoFile, imageRemoved, videoRemoved, initialEvent]);
 
   // Close on Escape
   useEffect(() => {
@@ -55,6 +76,8 @@ export default function CreateEventOverlay({ onClose, onSave, initialEvent }: Cr
         description,
         imageFile: imageFile || undefined,
         videoFile: videoFile || undefined,
+        imageRemoved,
+        videoRemoved,
       });
       onClose();
     }
@@ -99,7 +122,7 @@ export default function CreateEventOverlay({ onClose, onSave, initialEvent }: Cr
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+            onChange={(e) => setImageFile(e.target.files?.[0] || null)}
             className="text-white"
           />
         </div>
@@ -109,27 +132,53 @@ export default function CreateEventOverlay({ onClose, onSave, initialEvent }: Cr
           <input
             type="file"
             accept="video/*"
-            onChange={(e) => setVideoFile(e.target.files ? e.target.files[0] : null)}
+            onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
             className="text-white"
           />
         </div>
 
-        {/* Previews side by side */}
+        {/* Previews with remove buttons */}
         {(imagePreview || videoPreview) && (
           <div className="flex gap-2 mt-2">
             {imagePreview && (
-              <img
-                src={imagePreview}
-                alt="Image Preview"
-                className="flex-1 max-h-48 object-contain rounded border border-white"
-              />
+              <div className="relative flex-1">
+                <img
+                  src={imagePreview}
+                  alt="Image Preview"
+                  className="max-h-48 object-contain rounded border border-white"
+                />
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-red-700"
+                  onClick={() => {
+                    setImageFile(null);
+                    setImagePreview(null);
+                    setImageRemoved(true);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
             )}
             {videoPreview && (
-              <video
-                src={videoPreview}
-                controls
-                className="flex-1 max-h-48 object-contain rounded border border-white"
-              />
+              <div className="relative flex-1">
+                <video
+                  src={videoPreview}
+                  controls
+                  className="max-h-48 object-contain rounded border border-white"
+                />
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-red-700"
+                  onClick={() => {
+                    setVideoFile(null);
+                    setVideoPreview(null);
+                    setVideoRemoved(true);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
             )}
           </div>
         )}
