@@ -7,6 +7,30 @@ const api = axios.create({
   //   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("jwt");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token expired or invalid
+      localStorage.removeItem("jwt");
+      // Optionally redirect to login page
+      console.warn("Token expired — logging out.");
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 // Generic helper functions
 export const get = async <T>(url: string, params?: any): Promise<T> => {
   const res = await api.get(url, { params });

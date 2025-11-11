@@ -9,6 +9,7 @@ import ExpandableControls from './ButtonAnimation';
 import CreateEventOverlay from './CreateEventOverlay';
 import RemoveEventOverlay from './RemoveEventOverlay';
 import { uploadFileToS3 } from '@/lib/s3';
+import EventDisplay from './EventDisplay';
 
 interface Star {
   id: string;
@@ -44,23 +45,27 @@ export default function StarryNight() {
   const [showLogoutPrompt, setShowLogoutPrompt] = useState(false);
 
 
-// --- handle login/logout toggle on "P"
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key.toLowerCase() === 'p') {
-      if (isLoggedIn) {
-        // Toggle logout prompt when already logged in
-        setShowLogoutPrompt((prev) => !prev);
-      } else {
-        // Show login overlay
-        setShowLogin(true);
-      }
+    useEffect(() => {
+    const token = localStorage.getItem('jwt');
+    if (token) {
+      setIsLoggedIn(true);
     }
-  };
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [isLoggedIn]);
+  }, []);
 
+// --- handle login/logout toggle on "P"
+ useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'p') {
+        if (isLoggedIn) {
+          setShowLogoutPrompt((prev) => !prev);
+        } else {
+          setShowLogin(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLoggedIn]);
 
   // --- fetch events
   useEffect(() => {
@@ -251,8 +256,6 @@ const handleSaveEvent = async (data: {
   }
 };
 
-
-
   const handleRemoveEvent = async (id: number) => {
     try {
       await deleteEvent(id);
@@ -270,6 +273,12 @@ const handleSaveEvent = async (data: {
       opacity: Math.random() * 0.8 + 0.2,
     }))
   );
+
+    const handleLogout = () => {
+    localStorage.removeItem('jwt');
+    setIsLoggedIn(false);
+    setShowLogoutPrompt(false);
+  };
 
   return (
     <div
@@ -359,61 +368,30 @@ const handleSaveEvent = async (data: {
         )}
       </AnimatePresence>
 {/* Logout Prompt */}
-<AnimatePresence>
-  {showLogoutPrompt && (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.3 }}
-      className="absolute top-6 right-6 bg-white text-black px-4 py-2 rounded cursor-pointer z-50 shadow-md hover:bg-gray-200 transition"
-      onClick={() => {
-        setIsLoggedIn(false);
-        setShowLogoutPrompt(false);
-      }}
-    >
-      Log out
-    </motion.div>
-  )}
-</AnimatePresence>
-
-      {/* Read-only Active Event Overlay */}
       <AnimatePresence>
-        {activeEvent && (
+        {showLogoutPrompt && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-80 text-white p-6 z-50"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="absolute top-6 right-6 bg-white text-black px-4 py-2 rounded cursor-pointer z-50 shadow-md hover:bg-gray-200 transition"
+            onClick={handleLogout}
           >
-            <h2 className="text-3xl font-bold mb-4">{activeEvent.title}</h2>
-            <p className="mb-4 text-center max-w-xl">{activeEvent.description}</p>
-            {activeEvent.imageUrl && (
-              <div className="max-w-sm mb-4 relative w-full h-64">
-                <Image
-                  src={activeEvent.imageUrl}
-                  alt={activeEvent.title}
-                  fill
-                  className="object-contain rounded"
-                />
-              </div>
-            )}
-            {activeEvent.videoUrl && (
-              <video src={activeEvent.videoUrl} controls className="max-w-sm rounded mb-4" />
-            )}
-            <button
-              onClick={closeEvent}
-              className="mt-4 px-4 py-2 bg-white text-black rounded hover:bg-gray-300 transition"
-            >
-              Close
-            </button>
+            Log out
           </motion.div>
         )}
       </AnimatePresence>
 
+{/* Read-only Active Event Overlay */}
+<AnimatePresence>
+  {activeEvent && (
+    <EventDisplay event={activeEvent} onClose={closeEvent} />
+  )}
+</AnimatePresence>
+
       {/* Login */}
-      <AnimatePresence>
+<AnimatePresence>
         {showLogin && (
           <LoginOverlay
             onClose={() => setShowLogin(false)}
