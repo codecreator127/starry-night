@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import { addEvent, deleteEvent, getEvents, updateEvent } from '@/lib/events';
 import LoginOverlay from './LoginOverlay';
 import ExpandableControls from './ButtonAnimation';
@@ -44,16 +43,15 @@ export default function StarryNight() {
   const [showRemoveEventOverlay, setShowRemoveEventOverlay] = useState(false);
   const [showLogoutPrompt, setShowLogoutPrompt] = useState(false);
 
-
-    useEffect(() => {
+  useEffect(() => {
     const token = localStorage.getItem('jwt');
     if (token) {
       setIsLoggedIn(true);
     }
   }, []);
 
-// --- handle login/logout toggle on "P"
- useEffect(() => {
+  // --- handle login/logout toggle on "P"
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'p') {
         if (isLoggedIn) {
@@ -178,83 +176,82 @@ export default function StarryNight() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeEvent]);
 
+  const handleSaveEvent = async (data: {
+    id?: number;
+    title: string;
+    description: string;
+    imageFile?: File;
+    videoFile?: File;
+    imageRemoved?: boolean;
+    videoRemoved?: boolean;
+  }) => {
+    try {
+      let imageUrl: string | null = null;
+      let videoUrl: string | null = null;
 
-const handleSaveEvent = async (data: {
-  id?: number;
-  title: string;
-  description: string;
-  imageFile?: File;
-  videoFile?: File;
-  imageRemoved?: boolean;
-  videoRemoved?: boolean;
-}) => {
-  try {
-    let imageUrl: string | null = null;
-    let videoUrl: string | null = null;
+      if (data.id) {
+        // Editing existing event
+        const existingEvent = events.find((e) => e.id === data.id)!;
 
-    if (data.id) {
-      // Editing existing event
-      const existingEvent = events.find((e) => e.id === data.id)!;
+        // Determine image/video URLs
+        if (data.imageRemoved) {
+          imageUrl = null;
+        } else if (data.imageFile) {
+          imageUrl = await uploadFileToS3(data.imageFile, data.id);
+        } else {
+          imageUrl = existingEvent.imageUrl;
+        }
 
-      // Determine image/video URLs
-      if (data.imageRemoved) {
-        imageUrl = null;
-      } else if (data.imageFile) {
-        imageUrl = await uploadFileToS3(data.imageFile, data.id);
+        if (data.videoRemoved) {
+          videoUrl = null;
+        } else if (data.videoFile) {
+          videoUrl = await uploadFileToS3(data.videoFile, data.id);
+        } else {
+          videoUrl = existingEvent.videoUrl;
+        }
+
+        // Update backend
+        await updateEvent(data.id, {
+          title: data.title,
+          description: data.description,
+          imageUrl,
+          videoUrl,
+        });
+
+        // Update frontend state
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === data.id
+              ? { ...e, title: data.title, description: data.description, imageUrl, videoUrl }
+              : e,
+          ),
+        );
       } else {
-        imageUrl = existingEvent.imageUrl;
+        // New event
+        const newEvent = await addEvent({
+          title: data.title,
+          description: data.description,
+          imageUrl: null,
+          videoUrl: null,
+        });
+
+        const eventId = newEvent.id;
+
+        if (data.imageFile) imageUrl = await uploadFileToS3(data.imageFile, eventId);
+        if (data.videoFile) videoUrl = await uploadFileToS3(data.videoFile, eventId);
+
+        if (imageUrl !== null || videoUrl !== null) {
+          await updateEvent(eventId, { imageUrl, videoUrl });
+          newEvent.imageUrl = imageUrl;
+          newEvent.videoUrl = videoUrl;
+        }
+
+        setEvents((prev) => [...prev, newEvent]);
       }
-
-      if (data.videoRemoved) {
-        videoUrl = null;
-      } else if (data.videoFile) {
-        videoUrl = await uploadFileToS3(data.videoFile, data.id);
-      } else {
-        videoUrl = existingEvent.videoUrl;
-      }
-
-      // Update backend
-      await updateEvent(data.id, {
-        title: data.title,
-        description: data.description,
-        imageUrl,
-        videoUrl,
-      });
-
-      // Update frontend state
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === data.id
-            ? { ...e, title: data.title, description: data.description, imageUrl, videoUrl }
-            : e
-        )
-      );
-    } else {
-      // New event
-      const newEvent = await addEvent({
-        title: data.title,
-        description: data.description,
-        imageUrl: null,
-        videoUrl: null,
-      });
-
-      const eventId = newEvent.id;
-
-      if (data.imageFile) imageUrl = await uploadFileToS3(data.imageFile, eventId);
-      if (data.videoFile) videoUrl = await uploadFileToS3(data.videoFile, eventId);
-
-      if (imageUrl !== null || videoUrl !== null) {
-        await updateEvent(eventId, { imageUrl, videoUrl });
-        newEvent.imageUrl = imageUrl;
-        newEvent.videoUrl = videoUrl;
-      }
-
-      setEvents((prev) => [...prev, newEvent]);
+    } catch (err) {
+      console.error('Failed to save event:', err);
     }
-  } catch (err) {
-    console.error('Failed to save event:', err);
-  }
-};
+  };
 
   const handleRemoveEvent = async (id: number) => {
     try {
@@ -271,10 +268,10 @@ const handleSaveEvent = async (data: {
       left: Math.random() * 100,
       size: Math.random() * 2 + 1,
       opacity: Math.random() * 0.8 + 0.2,
-    }))
+    })),
   );
 
-    const handleLogout = () => {
+  const handleLogout = () => {
     localStorage.removeItem('jwt');
     setIsLoggedIn(false);
     setShowLogoutPrompt(false);
@@ -367,7 +364,7 @@ const handleSaveEvent = async (data: {
           </motion.div>
         )}
       </AnimatePresence>
-{/* Logout Prompt */}
+      {/* Logout Prompt */}
       <AnimatePresence>
         {showLogoutPrompt && (
           <motion.div
@@ -383,15 +380,13 @@ const handleSaveEvent = async (data: {
         )}
       </AnimatePresence>
 
-{/* Read-only Active Event Overlay */}
-<AnimatePresence>
-  {activeEvent && (
-    <EventDisplay event={activeEvent} onClose={closeEvent} />
-  )}
-</AnimatePresence>
+      {/* Read-only Active Event Overlay */}
+      <AnimatePresence>
+        {activeEvent && <EventDisplay event={activeEvent} onClose={closeEvent} />}
+      </AnimatePresence>
 
       {/* Login */}
-<AnimatePresence>
+      <AnimatePresence>
         {showLogin && (
           <LoginOverlay
             onClose={() => setShowLogin(false)}

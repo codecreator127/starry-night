@@ -1,7 +1,7 @@
 /* eslint-disable */
-import axios from "axios";
-import { post } from "./api";
-import { endpoints } from "./endpoints";
+import axios from 'axios';
+import { post } from './api';
+import { endpoints } from './endpoints';
 
 interface PresignResponse {
   signedRequest: string;
@@ -14,7 +14,7 @@ interface PresignResponse {
 export const getPresignedUrl = async (
   eventId: number,
   fileName: string,
-  fileType: string
+  fileType: string,
 ): Promise<PresignResponse> => {
   const data = await post<PresignResponse>(`${endpoints.s3}/signature`, {
     eventId,
@@ -29,7 +29,7 @@ export const uploadFileToS3 = async (file: File, eventId: number): Promise<strin
     const presign = await getPresignedUrl(eventId, file.name, file.type);
     const uploadUrl = presign.signedRequest;
 
-    console.log("Uploading file:", {
+    console.log('Uploading file:', {
       name: file.name,
       type: file.type,
       size: file.size,
@@ -38,15 +38,15 @@ export const uploadFileToS3 = async (file: File, eventId: number): Promise<strin
 
     const res = await axios.put(uploadUrl, file, {
       headers: {
-        "Content-Type": file.type,
+        'Content-Type': file.type,
       },
       maxBodyLength: Infinity,
     });
 
-    console.log("S3 upload success:", res.status, res.statusText);
+    console.log('S3 upload success:', res.status, res.statusText);
     return presign.url;
   } catch (error: any) {
-    console.error("S3 upload error:", {
+    console.error('S3 upload error:', {
       message: error.message,
       config: error.config,
       code: error.code,

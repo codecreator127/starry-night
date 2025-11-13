@@ -43,7 +43,10 @@ export default function RemoveEventOverlay({ events, onClose, onRemove }: Remove
         ) : (
           <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
             {events.map((event) => (
-              <div key={event.id} className="flex justify-between items-center border-b border-gray-500 pb-1">
+              <div
+                key={event.id}
+                className="flex justify-between items-center border-b border-gray-500 pb-1"
+              >
                 <span className="truncate">{event.title}</span>
                 <button
                   onClick={() => onRemove(event.id)}

@@ -27,7 +27,7 @@ export default function LoginOverlay({ onClose, onLoginSuccess }: LoginOverlayPr
       // Save JWT to localStorage
       localStorage.setItem('jwt', response.token);
       onLoginSuccess();
-    } catch (err: any) {
+    } catch (err) {
       setError('Invalid username or password');
     } finally {
       setLoading(false);

@@ -54,20 +54,12 @@ export default function EventDisplay({ event, onClose }: EventDisplayProps) {
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full">
             {imageUrl && (
               <div className="flex-1 w-full md:w-1/2 h-64 lg:h-80 flex items-center justify-center bg-black rounded-lg">
-                <img
-                  src={imageUrl}
-                  alt={title}
-                  className="max-w-full max-h-full object-contain"
-                />
+                <img src={imageUrl} alt={title} className="max-w-full max-h-full object-contain" />
               </div>
             )}
             {videoUrl && (
               <div className="flex-1 w-full md:w-1/2 h-64 lg:h-80 flex items-center justify-center bg-black rounded-lg">
-                <video
-                  src={videoUrl}
-                  controls
-                  className="max-w-full max-h-full object-contain"
-                />
+                <video src={videoUrl} controls className="max-w-full max-h-full object-contain" />
               </div>
             )}
           </div>

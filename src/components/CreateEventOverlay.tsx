@@ -18,7 +18,11 @@ interface CreateEventOverlayProps {
   initialEvent?: Event;
 }
 
-export default function CreateEventOverlay({ onClose, onSave, initialEvent }: CreateEventOverlayProps) {
+export default function CreateEventOverlay({
+  onClose,
+  onSave,
+  initialEvent,
+}: CreateEventOverlayProps) {
   const [title, setTitle] = useState(initialEvent?.title || '');
   const [description, setDescription] = useState(initialEvent?.description || '');
   const [imageFile, setImageFile] = useState<File | null>(null);

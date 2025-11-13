@@ -8,8 +8,8 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("jwt");
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('jwt');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -22,14 +22,13 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       // Token expired or invalid
-      localStorage.removeItem("jwt");
+      localStorage.removeItem('jwt');
       // Optionally redirect to login page
-      console.warn("Token expired — logging out.");
+      console.warn('Token expired — logging out.');
     }
     return Promise.reject(error);
-  }
+  },
 );
-
 
 // Generic helper functions
 export const get = async <T>(url: string, params?: any): Promise<T> => {

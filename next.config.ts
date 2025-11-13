@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['picsum.photos', "starry-night-media.s3.ap-southeast-2.amazonaws.com"],
+    domains: ['picsum.photos', 'starry-night-media.s3.ap-southeast-2.amazonaws.com'],
   },
 };
 
